@@ -44,3 +44,10 @@ describe('Content Security Policy (CLAUDE.md §2)', () => {
     expect(() => cspMetaPlugin().transformIndexHtml('<html></html>')).toThrow(/<head>/)
   })
 })
+
+describe('Content Security Policy header (also governs workers)', () => {
+  it('extends the meta policy with header-only directives', async () => {
+    const { CSP_HEADER_POLICY } = await import('./csp.ts')
+    expect(parseCsp(CSP_HEADER_POLICY)).toEqual({ ...parseCsp(CSP_POLICY), 'frame-ancestors': ["'none'"] })
+  })
+})

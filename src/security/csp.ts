@@ -13,6 +13,10 @@ const DIRECTIVES: ReadonlyArray<readonly [string, readonly string[]]> = [
 
 export const CSP_POLICY = DIRECTIVES.map(([name, values]) => `${name} ${values.join(' ')}`).join('; ')
 
+// Serve this as an HTTP header in production: unlike the <meta> tag it also governs the
+// intent worker, and it can carry header-only directives such as frame-ancestors.
+export const CSP_HEADER_POLICY = `${CSP_POLICY}; frame-ancestors 'none'`
+
 export function parseCsp(policy: string): Record<string, string[]> {
   return Object.fromEntries(
     policy

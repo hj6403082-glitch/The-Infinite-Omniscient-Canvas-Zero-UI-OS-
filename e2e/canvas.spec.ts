@@ -2,7 +2,12 @@ import { expect, openCanvas, test } from './fixtures.ts'
 
 test.describe('Infinite Canvas (production build, strict CSP + Trusted Types)', () => {
   test('boots the on-device model with no security policy violations', async ({ page, violations }) => {
+    const workerResponse = page.waitForResponse((response) => /intent\.worker-[\w-]+\.js$/.test(response.url()))
     await openCanvas(page)
+    // The header CSP (unlike <meta>) also governs the worker that runs LiteRT.js.
+    const workerCsp = (await workerResponse).headers()['content-security-policy']
+    expect(workerCsp).toContain("require-trusted-types-for 'script'")
+    expect(workerCsp).toContain("frame-ancestors 'none'")
     const csp = await page.locator('meta[http-equiv="Content-Security-Policy"]').getAttribute('content')
     expect(csp).toContain("require-trusted-types-for 'script'")
     expect(csp).not.toContain('unsafe-inline')
