@@ -1,7 +1,9 @@
+export const TOOL_NAMES = ['searchFiles', 'showStatus'] as const
+export type ToolName = (typeof TOOL_NAMES)[number]
+
 // Output label order of the intent model. 'none' means "no tool should run".
-export const INTENT_LABELS = ['none', 'searchFiles', 'showStatus'] as const
+export const INTENT_LABELS = ['none', ...TOOL_NAMES] as const
 export type IntentLabel = (typeof INTENT_LABELS)[number]
-export type ToolName = Exclude<IntentLabel, 'none'>
 
 export interface Intent {
   tool: ToolName
