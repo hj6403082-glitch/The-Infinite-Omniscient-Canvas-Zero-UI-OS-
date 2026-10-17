@@ -22,7 +22,7 @@ export class IntentLoop {
   #text = ''
   #lastEvaluated: string | null = null
   #timer: ReturnType<typeof setTimeout> | undefined
-  #inFlight = false
+  #cycle: Promise<void> | undefined
   #rerun = false
   #stopped = false
 
@@ -35,7 +35,7 @@ export class IntentLoop {
     if (this.#stopped) return
     this.#text = text
     clearTimeout(this.#timer)
-    this.#timer = setTimeout(() => void this.#evaluate(), this.#options.debounceMs ?? INTENT_DEBOUNCE_MS)
+    this.#timer = setTimeout(() => this.#evaluate(), this.#options.debounceMs ?? INTENT_DEBOUNCE_MS)
   }
 
   // Pointer activity only shapes the features; it never triggers inference by itself.
@@ -44,24 +44,31 @@ export class IntentLoop {
     this.#pointer.record(at)
   }
 
-  stop(): void {
-    if (this.#stopped) return
-    this.#stopped = true
-    clearTimeout(this.#timer)
-    // Deferred by the session until an in-flight cycle has deleted its tensors.
-    this.#options.session.dispose()
+  // Resolves once any in-flight cycle has settled and deleted its tensors.
+  stop(): Promise<void> {
+    if (!this.#stopped) {
+      this.#stopped = true
+      clearTimeout(this.#timer)
+      // Deferred by the session until an in-flight cycle has deleted its tensors.
+      this.#options.session.dispose()
+    }
+    return this.#cycle ?? Promise.resolve()
   }
 
-  async #evaluate(): Promise<void> {
+  #evaluate(): void {
     if (this.#stopped) return
-    if (this.#inFlight) {
+    if (this.#cycle) {
       this.#rerun = true
       return
     }
     const query = this.#text.trim()
     if (!query || query === this.#lastEvaluated) return
     this.#lastEvaluated = query
-    this.#inFlight = true
+    this.#cycle = this.#runCycle(query)
+  }
+
+  // Never rejects: failures are reported through onError.
+  async #runCycle(query: string): Promise<void> {
     try {
       const features = featurize(query, this.#pointer.snapshot(this.#now()))
       const [logits] = await this.#options.session.run(features, [1, FEATURE_SIZE])
@@ -73,10 +80,10 @@ export class IntentLoop {
       this.#lastEvaluated = null // allow the user to retry the same query
       if (!this.#stopped) this.#options.onError(error)
     } finally {
-      this.#inFlight = false
+      this.#cycle = undefined
       if (this.#rerun) {
         this.#rerun = false
-        void this.#evaluate()
+        this.#evaluate()
       }
     }
   }

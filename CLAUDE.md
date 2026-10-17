@@ -7,8 +7,9 @@ If a task appears to require breaking a rule, stop and ask; do not work around i
 
 TDD plan approved. Done: Section A (scaffold, test tooling, lint sink bans,
 CSP) and Section B (LiteRT.js adapter, WebNN -> WebGPU -> WASM fallback,
-TensorLedger, InferenceSession, intent decoder). Next: Section C (worker loop:
-command-bar text + pointer signals, 500 ms debounce). Tests use a stub model
+TensorLedger, InferenceSession, intent decoder) and Section C (zod worker
+protocol, debounced IntentLoop, worker runtime + `intent.worker.ts` entry).
+Next: Section D (tool registry + A2UI message builders). Tests use a stub model
 (`src/test/fake-litert.ts`) and fixture logits (`src/test/fixtures/`).
 
 ## 1. Generative UI — A2UI only

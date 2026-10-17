@@ -25,12 +25,18 @@ export class FakeTensor implements InferenceTensor {
   })
 }
 
+export type FakeModelOutput = (input: TensorOutputData) => TensorOutputData
+
 export class FakeModel implements InferenceModel {
   deleteCount = 0
   readonly outputs: FakeTensor[] = []
+  readonly #output: FakeModelOutput
   // Default model: echoes the input values as one fresh output tensor.
+  constructor(output: FakeModelOutput = (input) => Float32Array.from(input)) {
+    this.#output = output
+  }
   run = vi.fn(async (inputs: InferenceTensor[]): Promise<InferenceTensor[]> => {
-    const out = new FakeTensor(Float32Array.from(await inputs[0].data()))
+    const out = new FakeTensor(this.#output(await inputs[0].data()))
     this.outputs.push(out)
     return [out]
   })
@@ -42,9 +48,10 @@ export class FakeModel implements InferenceModel {
 export interface FakePortOptions {
   features?: Partial<Record<RuntimeFeature, boolean>>
   failCompile?: Partial<Record<AcceleratorTarget, Error>>
+  modelOutput?: FakeModelOutput
 }
 
-export function createFakePort({ features = {}, failCompile = {} }: FakePortOptions = {}) {
+export function createFakePort({ features = {}, failCompile = {}, modelOutput }: FakePortOptions = {}) {
   const tensors: FakeTensor[] = []
   const models: FakeModel[] = []
   const port = {
@@ -52,7 +59,7 @@ export function createFakePort({ features = {}, failCompile = {} }: FakePortOpti
     compile: vi.fn(async (_url: string, target: AcceleratorTarget) => {
       const error = failCompile[target]
       if (error) throw error
-      const model = new FakeModel()
+      const model = new FakeModel(modelOutput)
       models.push(model)
       return model
     }),
