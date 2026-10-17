@@ -134,6 +134,10 @@ export function createCanvasController({ send, frames, now = () => performance.n
       send({ type: 'pointer', x: clamp01(x), y: clamp01(y), at: Math.max(0, at) })
     },
 
+    reportInvalidWorkerMessage(): void {
+      notice('Ignored a malformed message from the inference worker')
+    },
+
     dismiss(surfaceId: string): void {
       if (processor.getSurface(surfaceId)) send({ type: 'dismiss', surfaceId })
     },

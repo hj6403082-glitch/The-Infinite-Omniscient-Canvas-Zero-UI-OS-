@@ -1,13 +1,32 @@
 :root {
   color-scheme: light dark;
   font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --canvas-bg: #f6f7f9;
+  --canvas-surface: #ffffff;
+  --canvas-text: #14161a;
+  --canvas-muted: #5b6270;
+  --canvas-border: #dde1e7;
+  --canvas-accent: #3a5bd9;
+  --canvas-accent-soft: rgb(58 91 217 / 0.12);
+  --canvas-danger: #c0392b;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --canvas-bg: #101216;
+    --canvas-surface: #171a20;
+    --canvas-text: #e8eaee;
+    --canvas-muted: #9aa2b1;
+    --canvas-border: #2a2f39;
+    --canvas-accent: #8aa2ff;
+    --canvas-accent-soft: rgb(138 162 255 / 0.16);
+    --canvas-danger: #ff7b6b;
+  }
 }
 
 body {
   margin: 0;
   min-height: 100vh;
-}
-
-.canvas {
-  min-height: 100vh;
+  background: var(--canvas-bg);
+  color: var(--canvas-text);
 }
