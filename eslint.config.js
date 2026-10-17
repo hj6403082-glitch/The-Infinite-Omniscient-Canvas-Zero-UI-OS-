@@ -27,6 +27,22 @@ const bannedSinks = {
   ],
 }
 
+// CLAUDE.md §3: LiteRT.js is reached only through the audited adapter.
+const LITERT_ADAPTER = 'src/inference/litert-adapter.ts'
+const liteRtBoundary = {
+  'no-restricted-imports': [
+    'error',
+    {
+      patterns: [
+        {
+          group: ['@litertjs/*'],
+          message: `Import LiteRT.js only in ${LITERT_ADAPTER}; use the LiteRtPort types elsewhere (CLAUDE.md §3).`,
+        },
+      ],
+    },
+  ],
+}
+
 export default defineConfig([
   globalIgnores(['dist', 'coverage', 'playwright-report', 'test-results']),
   {
@@ -41,7 +57,11 @@ export default defineConfig([
       ecmaVersion: 2023,
       globals: { ...globals.browser, ...globals.node },
     },
-    rules: bannedSinks,
+    rules: { ...bannedSinks, ...liteRtBoundary },
+  },
+  {
+    files: [LITERT_ADAPTER],
+    rules: { 'no-restricted-imports': 'off' },
   },
   {
     files: ['**/*.js'],
