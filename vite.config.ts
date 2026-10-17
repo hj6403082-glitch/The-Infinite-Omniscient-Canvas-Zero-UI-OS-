@@ -14,4 +14,6 @@ export default defineConfig({
   ],
   // Classic (IIFE) worker: LiteRT.js loads its Wasm glue with importScripts().
   worker: { format: 'iife' },
+  // React + lit + the A2UI runtime + zod form one ~650 kB (190 kB gzip) app chunk by design.
+  build: { chunkSizeWarningLimit: 800 },
 })

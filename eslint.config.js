@@ -61,6 +61,11 @@ export default defineConfig([
     rules: { ...bannedSinks, ...restrictImports(liteRtPattern) },
   },
   {
+    // Playwright fixtures call `use()`, which is not a React hook.
+    files: ['e2e/**', 'playwright.config.ts'],
+    rules: { 'react-hooks/rules-of-hooks': 'off' },
+  },
+  {
     files: WORKER_SIDE,
     rules: restrictImports(liteRtPattern, a2uiRuntimePattern),
   },
