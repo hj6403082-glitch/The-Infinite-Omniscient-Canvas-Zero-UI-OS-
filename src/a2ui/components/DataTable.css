@@ -1,0 +1,48 @@
+.a2ui-datatable {
+  overflow-x: auto;
+}
+
+.a2ui-datatable table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.a2ui-datatable caption {
+  text-align: start;
+  font-weight: 600;
+  padding-block: 0.25rem 0.5rem;
+}
+
+.a2ui-datatable th,
+.a2ui-datatable td {
+  text-align: start;
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--canvas-border);
+  white-space: nowrap;
+}
+
+.a2ui-datatable th {
+  font-weight: 600;
+  color: var(--canvas-muted);
+}
+
+.a2ui-datatable tr[aria-selected='true'] {
+  background: var(--canvas-accent-soft);
+}
+
+.a2ui-datatable-open {
+  all: unset;
+  cursor: pointer;
+  color: var(--canvas-accent);
+}
+
+.a2ui-datatable-open:focus-visible {
+  outline: 2px solid var(--canvas-accent);
+  outline-offset: 2px;
+}
+
+.a2ui-datatable-empty {
+  color: var(--canvas-muted);
+  margin: 0.75rem 0 0;
+}
