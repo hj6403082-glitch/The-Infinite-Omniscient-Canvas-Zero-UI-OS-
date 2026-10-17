@@ -24,10 +24,16 @@ function asLiteRtTensor(tensor: InferenceTensor): Tensor {
 
 export const liteRtPort: LiteRtPort = {
   async loadRuntime(wasmPath, { jspi }) {
-    runtime ??= loadLiteRt(wasmPath, { jspi }).catch((error: unknown) => {
-      runtime = undefined
-      throw error
-    })
+    // LiteRT.js passes the global `Module` to Emscripten, which otherwise looks for the
+    // .wasm binary next to the *worker* script rather than next to its glue script.
+    if (!runtime) {
+      const base = new URL(wasmPath, self.location.href)
+      ;(self as { Module?: unknown }).Module = { locateFile: (file: string) => new URL(file, base).href }
+      runtime = loadLiteRt(wasmPath, { jspi }).catch((error: unknown) => {
+        runtime = undefined
+        throw error
+      })
+    }
     await runtime
   },
 

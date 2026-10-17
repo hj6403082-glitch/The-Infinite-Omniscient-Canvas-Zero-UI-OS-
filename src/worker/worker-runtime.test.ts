@@ -44,6 +44,7 @@ describe('worker runtime (C5)', () => {
       type: 'intent',
       intent: { tool: 'searchFiles', confidence: expect.any(Number) },
       query: 'find invoices',
+      tensors: { created: 2, deleted: 2 },
     })
   })
 

@@ -105,7 +105,7 @@ export function createCanvasController({ send, frames, now = () => performance.n
           })
           return
         case 'intent':
-          update({ lastIntent: { ...event.intent, query: event.query } })
+          update({ lastIntent: { ...event.intent, query: event.query }, tensors: event.tensors })
           return
         case 'a2ui':
           batcher.push(event.messages)

@@ -73,7 +73,12 @@ describe('Canvas (E6)', () => {
 
   it('shows the tensor ledger and latest intent', () => {
     const { emit } = setup()
-    emit({ type: 'intent', intent: { tool: 'searchFiles', confidence: 0.964 }, query: 'invoices' })
+    emit({
+      type: 'intent',
+      intent: { tool: 'searchFiles', confidence: 0.964 },
+      query: 'invoices',
+      tensors: { created: 2, deleted: 2 },
+    })
     emit({ type: 'taskEnded', surfaceId: 'searchFiles-1', tool: 'searchFiles', reason: 'dismissed', tensors: { created: 6, deleted: 6 } })
     expect(screen.getByRole('status', { name: 'Tensor ledger' })).toHaveTextContent('6 created · 6 deleted · 0 live')
     expect(screen.getByRole('status', { name: 'Last intent' })).toHaveTextContent('File search · 96%')

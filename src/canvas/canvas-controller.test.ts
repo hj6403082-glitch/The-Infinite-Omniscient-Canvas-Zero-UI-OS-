@@ -59,7 +59,13 @@ describe('canvas controller', () => {
 
   it('tracks the latest intent and tensor ledger', () => {
     const { controller } = setup()
-    controller.handleEvent({ type: 'intent', intent: { tool: 'searchFiles', confidence: 0.93 }, query: 'invoices' })
+    controller.handleEvent({
+      type: 'intent',
+      intent: { tool: 'searchFiles', confidence: 0.93 },
+      query: 'invoices',
+      tensors: { created: 2, deleted: 2 },
+    })
+    expect(controller.getSnapshot().tensors).toEqual({ created: 2, deleted: 2 })
     controller.handleEvent({
       type: 'taskEnded',
       surfaceId: 'searchFiles-1',

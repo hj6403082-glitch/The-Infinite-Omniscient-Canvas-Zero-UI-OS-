@@ -54,7 +54,7 @@ export function createWorkerRuntime({ port, post, log, tools }: WorkerRuntimeDep
     loop = new IntentLoop({
       session,
       onIntent: (intent, query) => {
-        post({ type: 'intent', intent, query })
+        post({ type: 'intent', intent, query, tensors: tensorStats() })
         tasks.start(intent.tool, query)
       },
       onError: (error) => post({ type: 'error', scope: 'inference', message: `Inference failed: ${message(error)}` }),

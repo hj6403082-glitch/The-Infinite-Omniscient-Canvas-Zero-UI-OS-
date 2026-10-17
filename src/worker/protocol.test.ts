@@ -55,7 +55,12 @@ describe('worker protocol: worker -> main events', () => {
       })?.type,
     ).toBe('ready')
     expect(
-      parseWorkerEvent({ type: 'intent', intent: { tool: 'searchFiles', confidence: 0.9 }, query: 'invoices' })?.type,
+      parseWorkerEvent({
+        type: 'intent',
+        intent: { tool: 'searchFiles', confidence: 0.9 },
+        query: 'invoices',
+        tensors: { created: 2, deleted: 2 },
+      })?.type,
     ).toBe('intent')
     expect(parseWorkerEvent({ type: 'error', scope: 'tool', message: 'boom' })?.type).toBe('error')
     expect(parseWorkerEvent({ type: 'error', message: 'no scope' })).toBeNull()

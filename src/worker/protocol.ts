@@ -44,6 +44,7 @@ const WorkerEventSchema = z.discriminatedUnion('type', [
     type: z.literal('intent'),
     intent: z.object({ tool: ToolNameSchema, confidence: unit }),
     query: z.string().max(MAX_TEXT_LENGTH),
+    tensors: TensorStatsSchema,
   }),
   z.object({ type: z.literal('a2ui'), messages: A2uiBatchSchema }),
   z.object({

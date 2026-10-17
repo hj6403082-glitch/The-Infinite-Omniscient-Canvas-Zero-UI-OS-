@@ -57,6 +57,17 @@ describe('LiteRT.js adapter (CLAUDE.md §3)', () => {
     expect(litert.loadLiteRt).toHaveBeenCalledWith('/litert-wasm/', { jspi: true })
   })
 
+  it('points Emscripten at wasmPath for the .wasm binary (it defaults to the worker script dir)', async () => {
+    const { liteRtPort } = await freshAdapter()
+    let locate: ((file: string) => string) | undefined
+    litert.loadLiteRt.mockImplementationOnce(async () => {
+      locate = (globalThis as { Module?: { locateFile(file: string): string } }).Module?.locateFile
+      return {}
+    })
+    await liteRtPort.loadRuntime('/litert-wasm/', { jspi: true })
+    expect(locate?.('litert_wasm_jspi_internal.wasm')).toBe(`${location.origin}/litert-wasm/litert_wasm_jspi_internal.wasm`)
+  })
+
   it('allows a retry after the runtime fails to load', async () => {
     const { liteRtPort } = await freshAdapter()
     litert.loadLiteRt.mockRejectedValueOnce(new Error('network'))
