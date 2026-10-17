@@ -5,9 +5,11 @@ If a task appears to require breaking a rule, stop and ask; do not work around i
 
 ## Status
 
-TDD plan approved. Section A (scaffold, test tooling, lint sink bans, CSP) is
-done. Next: Section B (LiteRT.js inference adapter, WebNN -> WebGPU -> WASM
-fallback, tensor ledger). Proceed section by section on the owner's go-ahead.
+TDD plan approved. Done: Section A (scaffold, test tooling, lint sink bans,
+CSP) and Section B (LiteRT.js adapter, WebNN -> WebGPU -> WASM fallback,
+TensorLedger, InferenceSession, intent decoder). Next: Section C (worker loop:
+command-bar text + pointer signals, 500 ms debounce). Tests use a stub model
+(`src/test/fake-litert.ts`) and fixture logits (`src/test/fixtures/`).
 
 ## 1. Generative UI — A2UI only
 
