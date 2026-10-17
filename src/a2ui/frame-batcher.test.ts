@@ -84,4 +84,12 @@ describe('frame batcher (60 FPS hydration)', () => {
     frames.tick()
     expect(apply).toHaveBeenLastCalledWith([2])
   })
+
+  it('keeps scheduling with a scheduler that runs callbacks synchronously', () => {
+    const apply = vi.fn()
+    const batcher = createFrameBatcher<number>(apply, { request: (cb) => (cb(), 7), cancel: vi.fn() })
+    batcher.push([1])
+    batcher.push([2])
+    expect(apply.mock.calls).toEqual([[[1]], [[2]]])
+  })
 })

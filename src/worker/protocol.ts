@@ -53,7 +53,7 @@ const WorkerEventSchema = z.discriminatedUnion('type', [
     reason: z.enum(TASK_END_REASONS),
     tensors: TensorStatsSchema,
   }),
-  z.object({ type: z.literal('error'), message: z.string() }),
+  z.object({ type: z.literal('error'), scope: z.enum(['init', 'inference', 'tool', 'protocol']), message: z.string() }),
   z.object({ type: z.literal('stopped'), tensors: TensorStatsSchema }),
 ])
 

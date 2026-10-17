@@ -59,14 +59,14 @@ describe('worker runtime (C5)', () => {
   it('rejects invalid commands without echoing their payload', async () => {
     const { runtime, events } = setup()
     await runtime.handle({ type: 'eval', code: '<script>alert(1)</script>' })
-    expect(events).toEqual([{ type: 'error', message: 'Rejected invalid worker command' }])
+    expect(events).toEqual([{ type: 'error', scope: 'protocol', message: 'Rejected invalid worker command' }])
   })
 
   it('reports a failed init and allows a retry', async () => {
     const { runtime, events, port } = setup()
     port.loadRuntime.mockRejectedValueOnce(new Error('wasm 404'))
     await runtime.handle(INIT)
-    expect(events).toEqual([{ type: 'error', message: 'Inference init failed: wasm 404' }])
+    expect(events).toEqual([{ type: 'error', scope: 'init', message: 'Inference init failed: wasm 404' }])
     await runtime.handle(INIT)
     expect(events.at(-1)?.type).toBe('ready')
   })
@@ -76,7 +76,7 @@ describe('worker runtime (C5)', () => {
     await runtime.handle(INIT)
     await runtime.handle(INIT)
     expect(port.compile).toHaveBeenCalledTimes(1)
-    expect(events.at(-1)).toEqual({ type: 'error', message: 'Inference already initialized' })
+    expect(events.at(-1)).toEqual({ type: 'error', scope: 'protocol', message: 'Inference already initialized' })
   })
 
   it('forwards inference errors as error events', async () => {
@@ -85,7 +85,7 @@ describe('worker runtime (C5)', () => {
     models[0].run.mockRejectedValueOnce(new Error('NPU fault'))
     await runtime.handle({ type: 'text', text: 'x' })
     await vi.advanceTimersByTimeAsync(500)
-    expect(events.at(-1)).toEqual({ type: 'error', message: 'Inference failed: NPU fault' })
+    expect(events.at(-1)).toEqual({ type: 'error', scope: 'inference', message: 'Inference failed: NPU fault' })
   })
 
   it('starts the predicted tool and streams its A2UI surface', async () => {

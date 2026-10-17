@@ -33,7 +33,7 @@ export function createWorkerRuntime({ port, post, log, tools }: WorkerRuntimeDep
     emit: (messages) => post({ type: 'a2ui', messages }),
     status: () => ({ accelerator, tensors: tensorStats() }),
     onEnded: (ended) => post({ type: 'taskEnded', ...ended, tensors: tensorStats() }),
-    onError: (surfaceId, error) => post({ type: 'error', message: `Tool ${surfaceId} failed: ${message(error)}` }),
+    onError: (surfaceId, error) => post({ type: 'error', scope: 'tool', message: `Tool ${surfaceId} failed: ${message(error)}` }),
   })
 
   async function init({ wasmPath, modelUrl }: Extract<WorkerCommand, { type: 'init' }>): Promise<void> {
@@ -43,7 +43,7 @@ export function createWorkerRuntime({ port, post, log, tools }: WorkerRuntimeDep
     } catch (error) {
       if (state === 'stopped') return
       state = 'idle'
-      post({ type: 'error', message: `Inference init failed: ${message(error)}` })
+      post({ type: 'error', scope: 'init', message: `Inference init failed: ${message(error)}` })
       return
     }
     session = new InferenceSession(port, result.model)
@@ -57,7 +57,7 @@ export function createWorkerRuntime({ port, post, log, tools }: WorkerRuntimeDep
         post({ type: 'intent', intent, query })
         tasks.start(intent.tool, query)
       },
-      onError: (error) => post({ type: 'error', message: `Inference failed: ${message(error)}` }),
+      onError: (error) => post({ type: 'error', scope: 'inference', message: `Inference failed: ${message(error)}` }),
     })
     state = 'ready'
     accelerator = result.accelerator
@@ -78,14 +78,14 @@ export function createWorkerRuntime({ port, post, log, tools }: WorkerRuntimeDep
   async function handle(data: unknown): Promise<void> {
     const command = parseWorkerCommand(data)
     if (!command) {
-      post({ type: 'error', message: 'Rejected invalid worker command' })
+      post({ type: 'error', scope: 'protocol', message: 'Rejected invalid worker command' })
       return
     }
     if (state === 'stopped') return
     switch (command.type) {
       case 'init':
         if (state !== 'idle') {
-          post({ type: 'error', message: 'Inference already initialized' })
+          post({ type: 'error', scope: 'protocol', message: 'Inference already initialized' })
           return
         }
         state = 'initializing'

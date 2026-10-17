@@ -12,9 +12,11 @@ const animationFrames: FrameScheduler = {
 export function createFrameBatcher<T>(apply: (items: T[]) => void, frames: FrameScheduler = animationFrames) {
   let queue: T[] = []
   let frame: number | null = null
+  let scheduled = false
   let disposed = false
 
   function run(): void {
+    scheduled = false
     frame = null
     const items = queue
     queue = []
@@ -25,7 +27,11 @@ export function createFrameBatcher<T>(apply: (items: T[]) => void, frames: Frame
     push(items: readonly T[]): void {
       if (disposed || items.length === 0) return
       queue.push(...items)
-      frame ??= frames.request(run)
+      if (scheduled) return
+      scheduled = true
+      const id = frames.request(run)
+      // A synchronous scheduler may already have run (and cleared `scheduled`).
+      if (scheduled) frame = id
     },
     flush(): void {
       if (frame !== null) frames.cancel(frame)
@@ -35,6 +41,7 @@ export function createFrameBatcher<T>(apply: (items: T[]) => void, frames: Frame
       disposed = true
       if (frame !== null) frames.cancel(frame)
       frame = null
+      scheduled = false
       queue = []
     },
   }
