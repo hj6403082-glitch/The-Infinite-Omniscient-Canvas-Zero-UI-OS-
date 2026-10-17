@@ -1,11 +1,17 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
+import { devClassicWorkerPlugin } from './src/build/dev-classic-worker-plugin.ts'
 import { litertWasmPlugin } from './src/build/litert-wasm-plugin.ts'
 import { cspMetaPlugin } from './src/security/csp.ts'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), cspMetaPlugin(), litertWasmPlugin()],
+  plugins: [
+    react(),
+    cspMetaPlugin(),
+    litertWasmPlugin(),
+    devClassicWorkerPlugin({ entry: 'src/worker/intent.worker.ts' }),
+  ],
   // Classic (IIFE) worker: LiteRT.js loads its Wasm glue with importScripts().
   worker: { format: 'iife' },
 })

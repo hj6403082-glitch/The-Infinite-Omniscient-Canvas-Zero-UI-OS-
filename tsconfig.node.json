@@ -20,5 +20,5 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["vite.config.ts", "vitest.config.ts", "src/security/csp.ts", "src/build/litert-wasm-plugin.ts"]
+  "include": ["vite.config.ts", "vitest.config.ts", "src/security/csp.ts", "src/build/litert-wasm-plugin.ts", "src/build/dev-classic-worker-plugin.ts"]
 }
