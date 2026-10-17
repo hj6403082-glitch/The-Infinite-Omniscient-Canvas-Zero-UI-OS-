@@ -1,0 +1,35 @@
+{
+  "name": "infinite-omniscient-canvas",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "typecheck": "tsc -b",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@a2ui/react": "0.13.0",
+    "@a2ui/web_core": "0.13.0",
+    "@litertjs/core": "2.5.3",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "typescript": "6.0.3",
+    "vite": "8.3.4"
+  },
+  "overrides": {
+    "@a2ui/markdown-it": "0.2.1",
+    "dompurify": "3.4.16"
+  }
+}
