@@ -14,6 +14,11 @@ describe('featurize (stub-model preprocessing)', () => {
     expect(Array.from(featurize('Find Invoices', still))).toEqual(Array.from(featurize('find invoices', still)))
   })
 
+  it('tokenizes on non-alphanumerics, so punctuation does not change the features', () => {
+    expect(Array.from(featurize('invoices?', still))).toEqual(Array.from(featurize('invoices', still)))
+    expect(Array.from(featurize('tax-return, 2025!', still))).toEqual(Array.from(featurize('tax return 2025', still)))
+  })
+
   it('L2-normalizes the text buckets', () => {
     const f = featurize('alpha beta gamma alpha', still)
     const norm = Math.hypot(...f.subarray(0, FEATURE_SIZE - 2))

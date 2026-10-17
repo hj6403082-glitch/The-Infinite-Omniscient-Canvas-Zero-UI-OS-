@@ -1,7 +1,9 @@
 // Stub-model preprocessing: a fixed-size feature vector from command-bar text and pointer
 // activity. Replace together with the real quantized intent model.
 
-export const FEATURE_SIZE = 64
+export const FEATURE_SIZE = 256
+// Chosen by scripts/generate-stub-model.py so the stub model's keyword buckets don't collide.
+export const HASH_SEED = 13
 const TEXT_BUCKETS = FEATURE_SIZE - 2
 const POINTER_WINDOW_MS = 2000
 const MOVES_FOR_FULL_ACTIVITY = 20
@@ -24,10 +26,16 @@ function fnv1a(token: string): number {
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
 
+// Lowercase alphanumeric runs. scripts/generate-stub-model.py mirrors this exactly.
+export const tokenize = (text: string): string[] => text.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean)
+
+// Bucket index of a token in the text part of the feature vector.
+export const bucketOf = (token: string): number => fnv1a(`${HASH_SEED}:${token}`) % TEXT_BUCKETS
+
 export function featurize(text: string, pointer: PointerSnapshot): Float32Array<ArrayBuffer> {
   const features = new Float32Array(FEATURE_SIZE)
-  for (const token of text.toLowerCase().split(/\s+/).filter(Boolean)) {
-    features[fnv1a(token) % TEXT_BUCKETS] += 1
+  for (const token of tokenize(text)) {
+    features[bucketOf(token)] += 1
   }
   const norm = Math.hypot(...features.subarray(0, TEXT_BUCKETS))
   if (norm > 0) for (let i = 0; i < TEXT_BUCKETS; i++) features[i] /= norm
