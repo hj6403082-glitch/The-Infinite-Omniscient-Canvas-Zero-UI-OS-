@@ -3,6 +3,8 @@ import type { A2uiMessage } from '@a2ui/web_core/v0_9'
 
 export const A2UI_VERSION = 'v0.9'
 export const TRUSTED_CATALOG_ID = 'urn:infinite-canvas:catalog:trusted:v1'
+// Surface ids are issued by the task manager as `${toolName}-${sequence}`.
+export const SURFACE_ID_PATTERN = /^[A-Za-z]{1,32}-\d{1,9}$/
 
 // One node of a surface's flat adjacency list: children reference other nodes by id.
 export interface ComponentSpec {

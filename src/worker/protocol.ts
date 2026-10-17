@@ -1,6 +1,7 @@
 // Messages crossing the main thread <-> intent worker boundary.
 // Both directions are validated: postMessage payloads are untrusted input.
 import { z } from 'zod'
+import { SURFACE_ID_PATTERN } from '../a2ui/messages.ts'
 import { TOOL_NAMES } from '../inference/intent-decoder.ts'
 import { ACCELERATOR_ORDER } from '../inference/types.ts'
 import { TASK_END_REASONS } from '../tools/types.ts'
@@ -10,7 +11,7 @@ export const MAX_TEXT_LENGTH = 2000
 // Same-origin absolute path only: no scheme, no protocol-relative host, no backslashes.
 const sameOriginPath = z.string().regex(/^\/(?!\/)[^\s:\\]*$/, 'must be a same-origin absolute path')
 const unit = z.number().finite().min(0).max(1)
-const SurfaceIdSchema = z.string().regex(/^[A-Za-z]{1,32}-\d{1,9}$/)
+const SurfaceIdSchema = z.string().regex(SURFACE_ID_PATTERN)
 const ActionNameSchema = z.string().regex(/^[A-Za-z][A-Za-z0-9_]{0,63}$/)
 // Resolved action context: flat JSON primitives only.
 const ActionContextSchema = z
