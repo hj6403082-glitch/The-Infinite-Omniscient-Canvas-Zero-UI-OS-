@@ -67,3 +67,52 @@ describe('worker protocol: worker -> main events', () => {
     expect(parseWorkerEvent({ type: 'ready', accelerator: 'quantum', attempts: [] })).toBeNull()
   })
 })
+
+describe('worker protocol: tool-call render messages (D5)', () => {
+  it('accepts UI actions with primitive context values, and dismissals', () => {
+    expect(
+      parseWorkerCommand({ type: 'action', surfaceId: 'searchFiles-1', name: 'openFile', context: { fileId: 'f1' } }),
+    ).toEqual({ type: 'action', surfaceId: 'searchFiles-1', name: 'openFile', context: { fileId: 'f1' } })
+    expect(parseWorkerCommand({ type: 'dismiss', surfaceId: 'showStatus-2' })?.type).toBe('dismiss')
+  })
+
+  it('rejects malformed surface ids, action names and nested or oversized context', () => {
+    for (const bad of [
+      { type: 'dismiss', surfaceId: '../etc' },
+      { type: 'action', surfaceId: 'searchFiles-1', name: 'open file', context: {} },
+      { type: 'action', surfaceId: 'searchFiles-1', name: 'openFile', context: { a: { nested: true } } },
+      { type: 'action', surfaceId: 'searchFiles-1', name: 'openFile', context: { a: 'x'.repeat(1025) } },
+      {
+        type: 'action',
+        surfaceId: 'searchFiles-1',
+        name: 'openFile',
+        context: Object.fromEntries(Array.from({ length: 17 }, (_, i) => [`k${i}`, i])),
+      },
+    ]) {
+      expect(parseWorkerCommand(bad)).toBeNull()
+    }
+  })
+
+  it('accepts a2ui batches and taskEnded events', () => {
+    expect(parseWorkerEvent({ type: 'a2ui', messages: [{ version: 'v0.9', deleteSurface: { surfaceId: 's' } }] })?.type).toBe(
+      'a2ui',
+    )
+    expect(
+      parseWorkerEvent({
+        type: 'taskEnded',
+        surfaceId: 'searchFiles-1',
+        tool: 'searchFiles',
+        reason: 'dismissed',
+        tensors: { created: 2, deleted: 2 },
+      })?.type,
+    ).toBe('taskEnded')
+  })
+
+  it('rejects empty or oversized a2ui batches and unknown end reasons', () => {
+    expect(parseWorkerEvent({ type: 'a2ui', messages: [] })).toBeNull()
+    expect(parseWorkerEvent({ type: 'a2ui', messages: Array.from({ length: 65 }, () => ({})) })).toBeNull()
+    expect(
+      parseWorkerEvent({ type: 'taskEnded', surfaceId: 's-1', tool: 'showStatus', reason: 'exploded', tensors: { created: 0, deleted: 0 } }),
+    ).toBeNull()
+  })
+})

@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createFakePort } from '../test/fake-litert.ts'
 import { LOGITS } from '../test/fixtures/intent-logits.ts'
+import { createFileIndex, DEMO_FILES } from '../tools/file-index.ts'
+import { createSearchFilesTool } from '../tools/search-files.ts'
+import { showStatusTool } from '../tools/show-status.ts'
 import type { WorkerEvent } from './protocol.ts'
 import { createWorkerRuntime } from './worker-runtime.ts'
 
@@ -10,7 +13,8 @@ function setup(options: Parameters<typeof createFakePort>[0] = {}) {
   const fake = createFakePort({ modelOutput: () => LOGITS.confidentSearch, ...options })
   const events: WorkerEvent[] = []
   const log = { info: vi.fn(), warn: vi.fn() }
-  const runtime = createWorkerRuntime({ port: fake.port, post: (e) => events.push(e), log })
+  const tools = [createSearchFilesTool(createFileIndex(DEMO_FILES, { latencyMs: 0 })), showStatusTool]
+  const runtime = createWorkerRuntime({ port: fake.port, post: (e) => events.push(e), log, tools })
   return { ...fake, events, runtime }
 }
 
@@ -36,7 +40,7 @@ describe('worker runtime (C5)', () => {
     await runtime.handle({ type: 'pointer', x: 0.5, y: 0.5, at: 1 })
     await runtime.handle({ type: 'text', text: 'find invoices' })
     await vi.advanceTimersByTimeAsync(500)
-    expect(events.at(-1)).toEqual({
+    expect(events.find((e) => e.type === 'intent')).toEqual({
       type: 'intent',
       intent: { tool: 'searchFiles', confidence: expect.any(Number) },
       query: 'find invoices',
@@ -82,6 +86,66 @@ describe('worker runtime (C5)', () => {
     await runtime.handle({ type: 'text', text: 'x' })
     await vi.advanceTimersByTimeAsync(500)
     expect(events.at(-1)).toEqual({ type: 'error', message: 'Inference failed: NPU fault' })
+  })
+
+  it('starts the predicted tool and streams its A2UI surface', async () => {
+    const { runtime, events } = setup()
+    await runtime.handle(INIT)
+    await runtime.handle({ type: 'text', text: 'find invoices' })
+    await vi.advanceTimersByTimeAsync(500)
+    const a2uiMessages = events.flatMap((e) => (e.type === 'a2ui' ? e.messages : []))
+    expect(a2uiMessages[0]).toEqual({
+      version: 'v0.9',
+      createSurface: { surfaceId: 'searchFiles-1', catalogId: expect.any(String) },
+    })
+    expect(JSON.stringify(a2uiMessages)).toContain('"/results"')
+  })
+
+  it('ends a dismissed task with deleteSurface and a balanced tensor ledger', async () => {
+    const { runtime, events } = setup()
+    await runtime.handle(INIT)
+    await runtime.handle({ type: 'text', text: 'invoices' })
+    await vi.advanceTimersByTimeAsync(500)
+    await runtime.handle({ type: 'dismiss', surfaceId: 'searchFiles-1' })
+    const deleteEvent = events.at(-2)
+    expect(deleteEvent).toEqual({ type: 'a2ui', messages: [{ version: 'v0.9', deleteSurface: { surfaceId: 'searchFiles-1' } }] })
+    expect(events.at(-1)).toEqual({
+      type: 'taskEnded',
+      surfaceId: 'searchFiles-1',
+      tool: 'searchFiles',
+      reason: 'dismissed',
+      tensors: { created: 2, deleted: 2 },
+    })
+  })
+
+  it('completes a task on its terminal action', async () => {
+    const { runtime, events } = setup()
+    await runtime.handle(INIT)
+    await runtime.handle({ type: 'text', text: 'invoices' })
+    await vi.advanceTimersByTimeAsync(500)
+    await vi.runAllTimersAsync() // let the search tool finish streaming
+    await runtime.handle({ type: 'action', surfaceId: 'searchFiles-1', name: 'openFile', context: { fileId: 'f1' } })
+    expect(events.at(-1)).toMatchObject({ type: 'taskEnded', reason: 'completed' })
+  })
+
+  it('ignores actions and dismissals before the model is ready', async () => {
+    const { runtime, events } = setup()
+    await runtime.handle({ type: 'dismiss', surfaceId: 'searchFiles-1' })
+    await runtime.handle({ type: 'action', surfaceId: 'searchFiles-1', name: 'openFile', context: {} })
+    expect(events).toEqual([])
+  })
+
+  it('stop deletes every open surface before reporting stopped', async () => {
+    const { runtime, events } = setup({ modelOutput: () => LOGITS.confidentStatus })
+    await runtime.handle(INIT)
+    await runtime.handle({ type: 'text', text: 'status' })
+    await vi.advanceTimersByTimeAsync(500)
+    await runtime.handle({ type: 'stop' })
+    expect(events.slice(-3)).toEqual([
+      { type: 'a2ui', messages: [{ version: 'v0.9', deleteSurface: { surfaceId: 'showStatus-1' } }] },
+      expect.objectContaining({ type: 'taskEnded', reason: 'shutdown' }),
+      { type: 'stopped', tensors: { created: 2, deleted: 2 } },
+    ])
   })
 
   it('stop disposes the model and reports balanced tensor counts', async () => {

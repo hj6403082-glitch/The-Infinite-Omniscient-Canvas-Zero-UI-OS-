@@ -8,8 +8,11 @@ If a task appears to require breaking a rule, stop and ask; do not work around i
 TDD plan approved. Done: Section A (scaffold, test tooling, lint sink bans,
 CSP) and Section B (LiteRT.js adapter, WebNN -> WebGPU -> WASM fallback,
 TensorLedger, InferenceSession, intent decoder) and Section C (zod worker
-protocol, debounced IntentLoop, worker runtime + `intent.worker.ts` entry).
-Next: Section D (tool registry + A2UI message builders). Tests use a stub model
+protocol, debounced IntentLoop, worker runtime + `intent.worker.ts` entry) and
+Section D (tool registry, A2UI builders, Trusted Catalog spec, searchFiles,
+showStatus, task manager wired into the worker). Next: Section E (main-thread
+zero-trust client: message gate, React catalog, DataTable, rAF batcher,
+Canvas). Tests use a stub model
 (`src/test/fake-litert.ts`) and fixture logits (`src/test/fixtures/`).
 
 ## 1. Generative UI — A2UI only
@@ -105,3 +108,13 @@ Next: Section D (tool registry + A2UI message builders). Tests use a stub model
 - Tests: `npm test` (single file: `npx vitest run <path>`)
 - Typecheck: `npm run typecheck` · Lint: `npm run lint` · Build: `npm run build`
 - Version overrides in `package.json` are deliberate (see git log); do not drop them.
+
+## Layout
+
+- `src/inference/` LiteRT port + adapter (only `@litertjs/core` importer), fallback
+  chain, TensorLedger, InferenceSession, featurizer (stub), intent decoder.
+- `src/worker/` zod protocol, IntentLoop, worker runtime, `intent.worker.ts`.
+- `src/tools/` registry, task manager (surface lifecycle), searchFiles, showStatus.
+  Worker-side: may only `import type` from `@a2ui/*` (lint-enforced).
+- `src/a2ui/` message builders (worker-safe), DataTable API, Trusted Catalog spec.
+- `src/test/` fakes, fixtures and the strict-processor tool harness.

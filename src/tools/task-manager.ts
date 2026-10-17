@@ -1,8 +1,8 @@
 import { a2ui } from '../a2ui/messages.ts'
 import type { ToolRegistry } from './registry.ts'
-import type { A2uiMessage, SystemStatus, ToolHandle, ToolName } from './types.ts'
+import type { A2uiMessage, SystemStatus, TaskEndReason, ToolHandle, ToolName } from './types.ts'
 
-export type TaskEndReason = 'completed' | 'dismissed' | 'error' | 'timeout' | 'superseded' | 'evicted' | 'shutdown'
+export type { TaskEndReason }
 
 export interface TaskEnded {
   surfaceId: string

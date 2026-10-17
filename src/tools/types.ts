@@ -4,6 +4,17 @@ import type { AcceleratorTarget } from '../inference/types.ts'
 
 export type { A2uiMessage, ToolName }
 
+export const TASK_END_REASONS = [
+  'completed',
+  'dismissed',
+  'error',
+  'timeout',
+  'superseded',
+  'evicted',
+  'shutdown',
+] as const
+export type TaskEndReason = (typeof TASK_END_REASONS)[number]
+
 export interface SystemStatus {
   accelerator: AcceleratorTarget | null
   tensors: { created: number; deleted: number }
