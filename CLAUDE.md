@@ -5,8 +5,9 @@ If a task appears to require breaking a rule, stop and ask; do not work around i
 
 ## Status
 
-Phase: architecture & planning. No application code exists yet. Implementation
-starts only after the TDD plan is explicitly approved by the project owner.
+TDD plan approved. Section A (scaffold, test tooling, lint sink bans, CSP) is
+done. Next: Section B (LiteRT.js inference adapter, WebNN -> WebGPU -> WASM
+fallback, tensor ledger). Proceed section by section on the owner's go-ahead.
 
 ## 1. Generative UI — A2UI only
 
