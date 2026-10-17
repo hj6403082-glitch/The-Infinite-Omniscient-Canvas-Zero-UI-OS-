@@ -92,3 +92,12 @@ starts only after the TDD plan is explicitly approved by the project owner.
 - Pin exact dependency versions (no `^`/`~`) and only adopt releases that are
   at least ~1 week old.
 - Before committing: lint, typecheck, and unit tests must pass.
+
+## Commands
+
+- Install from lockfile: `npm ci`
+- Add/upgrade deps: `npx -y npm@11.21.0 i -D --save-exact <pkg>@<x.y.z>`
+  (npm 10.9.x crashes resolving vitest's optional peers: `edgesOut` error).
+- Tests: `npm test` (single file: `npx vitest run <path>`)
+- Typecheck: `npm run typecheck` · Lint: `npm run lint` · Build: `npm run build`
+- Version overrides in `package.json` are deliberate (see git log); do not drop them.
