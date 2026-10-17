@@ -29,19 +29,20 @@ const bannedSinks = {
 
 // CLAUDE.md §3: LiteRT.js is reached only through the audited adapter.
 const LITERT_ADAPTER = 'src/inference/litert-adapter.ts'
-const liteRtBoundary = {
-  'no-restricted-imports': [
-    'error',
-    {
-      patterns: [
-        {
-          group: ['@litertjs/*'],
-          message: `Import LiteRT.js only in ${LITERT_ADAPTER}; use the LiteRtPort types elsewhere (CLAUDE.md §3).`,
-        },
-      ],
-    },
-  ],
+const liteRtPattern = {
+  group: ['@litertjs/*'],
+  message: `Import LiteRT.js only in ${LITERT_ADAPTER}; use the LiteRtPort types elsewhere (CLAUDE.md §3).`,
 }
+// Worker-side code must not load the A2UI runtime (it registers DOM Custom Elements).
+const WORKER_SIDE = ['src/worker/**', 'src/tools/**', 'src/a2ui/messages.ts']
+const a2uiRuntimePattern = {
+  group: ['@a2ui/*'],
+  allowTypeImports: true,
+  message: 'Worker-side code may only `import type` from @a2ui/*; the runtime needs the DOM.',
+}
+const restrictImports = (...patterns) => ({
+  '@typescript-eslint/no-restricted-imports': ['error', { patterns }],
+})
 
 export default defineConfig([
   globalIgnores(['dist', 'coverage', 'playwright-report', 'test-results']),
@@ -57,11 +58,15 @@ export default defineConfig([
       ecmaVersion: 2023,
       globals: { ...globals.browser, ...globals.node },
     },
-    rules: { ...bannedSinks, ...liteRtBoundary },
+    rules: { ...bannedSinks, ...restrictImports(liteRtPattern) },
+  },
+  {
+    files: WORKER_SIDE,
+    rules: restrictImports(liteRtPattern, a2uiRuntimePattern),
   },
   {
     files: [LITERT_ADAPTER],
-    rules: { 'no-restricted-imports': 'off' },
+    rules: { '@typescript-eslint/no-restricted-imports': 'off' },
   },
   {
     files: ['**/*.js'],
