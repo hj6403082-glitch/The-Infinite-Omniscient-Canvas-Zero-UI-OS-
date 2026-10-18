@@ -68,6 +68,29 @@ describe('LiteRT.js adapter (CLAUDE.md §3)', () => {
     expect(locate?.('litert_wasm_jspi_internal.wasm')).toBe(`${location.origin}/litert-wasm/litert_wasm_jspi_internal.wasm`)
   })
 
+  it('routes Emscripten output: drops INFO chatter, keeps warnings and errors', async () => {
+    const { liteRtPort } = await freshAdapter()
+    let printErr: ((line: string) => void) | undefined
+    let print: ((line: string) => void) | undefined
+    litert.loadLiteRt.mockImplementationOnce(async () => {
+      const module = (globalThis as { Module?: { printErr(l: string): void; print(l: string): void } }).Module
+      printErr = module?.printErr
+      print = module?.print
+      return {}
+    })
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    await liteRtPort.loadRuntime('/litert-wasm/', { jspi: false })
+    printErr?.('INFO: [environment.cc:36] Creating LiteRT environment')
+    print?.('INFO: Created TensorFlow Lite XNNPACK delegate for CPU.')
+    expect(warn).not.toHaveBeenCalled()
+    expect(error).not.toHaveBeenCalled()
+    printErr?.('WARNING: [npu_registry.cc:34] NPU accelerator could not be loaded')
+    printErr?.('ERROR: model is broken')
+    expect(warn).toHaveBeenCalledWith('[LiteRT] WARNING: [npu_registry.cc:34] NPU accelerator could not be loaded')
+    expect(error).toHaveBeenCalledWith('[LiteRT] ERROR: model is broken')
+  })
+
   it('allows a retry after the runtime fails to load', async () => {
     const { liteRtPort } = await freshAdapter()
     litert.loadLiteRt.mockRejectedValueOnce(new Error('network'))

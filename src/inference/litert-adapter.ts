@@ -17,6 +17,13 @@ export const COMPILE_OPTIONS: Readonly<Record<AcceleratorTarget, CompileOptions>
 
 let runtime: Promise<unknown> | undefined
 
+// Emscripten writes LiteRT's native logs (mostly INFO) to stderr; keep only what matters.
+function runtimeLog(line: string): void {
+  if (/^\s*INFO\b/.test(line) || line.trim() === '') return
+  if (/^\s*WARN(ING)?\b/.test(line)) console.warn(`[LiteRT] ${line}`)
+  else console.error(`[LiteRT] ${line}`)
+}
+
 function asLiteRtTensor(tensor: InferenceTensor): Tensor {
   if (!(tensor instanceof Tensor)) throw new TypeError('Input is not a LiteRT tensor created by this adapter')
   return tensor
@@ -28,7 +35,11 @@ export const liteRtPort: LiteRtPort = {
     // .wasm binary next to the *worker* script rather than next to its glue script.
     if (!runtime) {
       const base = new URL(wasmPath, self.location.href)
-      ;(self as { Module?: unknown }).Module = { locateFile: (file: string) => new URL(file, base).href }
+      ;(self as { Module?: unknown }).Module = {
+        locateFile: (file: string) => new URL(file, base).href,
+        print: runtimeLog,
+        printErr: runtimeLog,
+      }
       runtime = loadLiteRt(wasmPath, { jspi }).catch((error: unknown) => {
         runtime = undefined
         throw error
