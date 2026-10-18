@@ -43,19 +43,35 @@ Then type, for example:
 
 | You type | The canvas builds | Ends when |
 | --- | --- | --- |
-| `find my invoices`, `search for the tax pdf` | **File search**: a loading state, then a `DataTable` bound to `/results` | you open a file (terminal action) or dismiss it |
+| `find my invoices`, `search for the tax pdf`, `find budget` | **File search**: a loading state, then a `DataTable` bound to `/results` | you open a file (terminal action) or dismiss it |
 | `system status`, `how is the npu memory` | **System status**: the accelerator, the tensor ledger and active tasks | you press **Done** or dismiss it |
 | anything else | nothing; the canvas stays clear | |
 
 The header shows the active accelerator (hover it to see why any fallback
-happened), the tensor ledger and the last predicted intent.
+happened), the tensor ledger, the last predicted intent and the file source.
+
+### Your own files
+
+Until you connect a folder, File search uses about 28 made-up demo files. Click
+**Connect folder** and pick a directory to switch to your own files.
+
+- **The worker only ever sees metadata:** name, path, size and modified date,
+  for up to 5000 files. Hidden files and folders are skipped. File contents stay
+  on the main thread.
+- **Search matches** file names, kinds and folder names.
+- **Opening a file** (clicking it in the table) is the task's terminal action. The
+  file opens in a new tab from a `blob:` URL, but only for types that cannot run
+  script: PDF, images, plain text, JSON/CSV/Markdown (shown as plain text),
+  audio and video.
+- **Everything else downloads instead** (HTML, SVG, XML, scripts, unknown
+  types), so a user file can never execute in the canvas origin.
 
 ## Scripts
 
 | Command | What it does |
 | --- | --- |
 | `npm run dev` | Dev server. The worker is served as a classic script at `/@canvas/intent-worker.js`. |
-| `npm run build` / `npm run preview` | Production build; preview serves it with the header CSP. |
+| `npm run build` / `npm run preview` | Production build: a 16 KB app chunk plus cacheable `react` and `a2ui` vendor chunks, and `dist/_headers`. Preview serves it with the header CSP. |
 | `npm run check` | Lint, typecheck, unit tests and build (what CI runs). |
 | `npm test` | Vitest unit and integration tests (jsdom). |
 | `npm run test:e2e` | Playwright against the production build under CSP and Trusted Types. Set `CANVAS_E2E_CHROMIUM=/path/to/chrome` to use a preinstalled browser. |
@@ -82,13 +98,22 @@ npm 10.9 crashes resolving vitest's optional peers. Versions are pinned exactly.
   `Video`, `AudioPlayer` and `openUrl`, plus `DataTable`. Unknown component
   types are rejected. No markdown renderer is registered, so lit's `unsafeHTML`
   path is unreachable.
+- **Local files** open only with an allowlisted MIME type. Anything that could
+  execute (HTML, SVG, XML, scripts, unknown types) downloads as
+  `application/octet-stream` instead (`src/canvas/local-files.ts`).
 - **CSP and Trusted Types.** The policy is `default-src 'self'; script-src 'self'
   'wasm-unsafe-eval'; style-src 'self'; object-src 'none'; base-uri 'none';
   require-trusted-types-for 'script'`. It is injected as a `<meta>` tag at build
   time.
-  - **Serve it as an HTTP header in production** (`CSP_HEADER_POLICY` in
-    `src/security/csp.ts`, which adds `frame-ancestors 'none'`). Only the header
-    form also governs the worker. `vite preview` already does this.
+  - **Serve it as an HTTP header in production** (`SECURITY_HEADERS` in
+    `src/security/csp.ts`; the policy adds `frame-ancestors 'none'`). Only the
+    header form also governs the worker.
+  - The build emits `dist/_headers` (Netlify / Cloudflare Pages format) with these
+    headers, and `vite preview` sends them too. On other hosts, set the same three
+    headers on every path. For example, in nginx: `add_header
+    Content-Security-Policy "<CSP_HEADER_POLICY>" always;` plus
+    `X-Content-Type-Options: nosniff` and `Referrer-Policy: no-referrer`. Also
+    serve `*.wasm` as `application/wasm`.
   - The worker URL is minted by a Trusted Types policy (same-origin only).
   - Inside the worker, a Trusted Types default policy admits only LiteRT's own
     `litert_wasm_*.js` glue.
@@ -140,9 +165,9 @@ src/inference/  LiteRT port + adapter, accelerator fallback, TensorLedger,
 src/worker/     zod protocol, IntentLoop, worker runtime, worker TT policy, entry
 src/tools/      tool registry, TaskManager (surface lifecycle), searchFiles, showStatus
 src/a2ui/       message builders, gate, URL policy, frame batcher, Trusted Catalog, DataTable
-src/canvas/     controller, worker bridge, TT worker URL, runtime wiring, Canvas UI
+src/canvas/     controller, worker bridge, TT worker URL, runtime wiring, local files, Canvas UI
 src/security/   CSP + lint-boundary tests
 src/build/      Vite plugins: LiteRT wasm serving, dev classic worker
-e2e/            Playwright suite (flows, security, frame-time budget)
+e2e/            Playwright suite (flows, security, local folders, frame-time budget)
 scripts/        stub model generator
 ```
