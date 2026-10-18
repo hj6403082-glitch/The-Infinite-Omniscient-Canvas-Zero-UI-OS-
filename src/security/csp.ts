@@ -17,6 +17,20 @@ export const CSP_POLICY = DIRECTIVES.map(([name, values]) => `${name} ${values.j
 // intent worker, and it can carry header-only directives such as frame-ancestors.
 export const CSP_HEADER_POLICY = `${CSP_POLICY}; frame-ancestors 'none'`
 
+// Response headers for every path in production (and in `vite preview`).
+export const SECURITY_HEADERS: Readonly<Record<string, string>> = {
+  'Content-Security-Policy': CSP_HEADER_POLICY,
+  'X-Content-Type-Options': 'nosniff',
+  'Referrer-Policy': 'no-referrer',
+}
+
+// Netlify / Cloudflare Pages `_headers` format; other hosts: see README.
+function headersFile(): string {
+  const lines = ['/*', ...Object.entries(SECURITY_HEADERS).map(([name, value]) => `  ${name}: ${value}`)]
+  lines.push('/litert-wasm/*.wasm', '  Content-Type: application/wasm')
+  return `${lines.join('\n')}\n`
+}
+
 export function parseCsp(policy: string): Record<string, string[]> {
   return Object.fromEntries(
     policy
@@ -33,6 +47,9 @@ export function cspMetaPlugin() {
   return {
     name: 'canvas:csp-meta',
     apply: 'build' as const,
+    generateBundle(this: { emitFile(asset: { type: 'asset'; fileName: string; source: string }): void }) {
+      this.emitFile({ type: 'asset', fileName: '_headers', source: headersFile() })
+    },
     transformIndexHtml(html: string): string {
       const head = /<head[^>]*>/i.exec(html)
       if (!head) throw new Error('cspMetaPlugin: index.html has no <head> to inject the CSP into')

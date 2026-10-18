@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { CSP_POLICY, cspMetaPlugin, parseCsp } from './csp.ts'
 
 const HTML = `<!doctype html>
@@ -49,5 +49,34 @@ describe('Content Security Policy header (also governs workers)', () => {
   it('extends the meta policy with header-only directives', async () => {
     const { CSP_HEADER_POLICY } = await import('./csp.ts')
     expect(parseCsp(CSP_HEADER_POLICY)).toEqual({ ...parseCsp(CSP_POLICY), 'frame-ancestors': ["'none'"] })
+  })
+})
+
+describe('deployable security headers', () => {
+  it('serves the header CSP plus nosniff and no-referrer', async () => {
+    const { CSP_HEADER_POLICY, SECURITY_HEADERS } = await import('./csp.ts')
+    expect(SECURITY_HEADERS).toEqual({
+      'Content-Security-Policy': CSP_HEADER_POLICY,
+      'X-Content-Type-Options': 'nosniff',
+      'Referrer-Policy': 'no-referrer',
+    })
+  })
+
+  it('emits a _headers file (Netlify / Cloudflare Pages format) applying them to every path', async () => {
+    const { CSP_HEADER_POLICY, cspMetaPlugin } = await import('./csp.ts')
+    const emitFile = vi.fn()
+    cspMetaPlugin().generateBundle.call({ emitFile })
+    expect(emitFile).toHaveBeenCalledWith({ type: 'asset', fileName: '_headers', source: expect.any(String) })
+    const source = emitFile.mock.calls[0][0].source as string
+    expect(source.split('\n')).toEqual(
+      expect.arrayContaining([
+        '/*',
+        `  Content-Security-Policy: ${CSP_HEADER_POLICY}`,
+        '  X-Content-Type-Options: nosniff',
+        '  Referrer-Policy: no-referrer',
+        '/litert-wasm/*.wasm',
+        '  Content-Type: application/wasm',
+      ]),
+    )
   })
 })
