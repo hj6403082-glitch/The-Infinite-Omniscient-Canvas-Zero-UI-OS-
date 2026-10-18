@@ -7,9 +7,21 @@ const syncFrames = { request: (cb: () => void) => (cb(), 0), cancel: () => undef
 
 function setup() {
   const sent: WorkerCommand[] = []
-  const controller = createCanvasController({ send: (c) => sent.push(c), frames: syncFrames, now: () => 1000 })
+  const opened: File[] = []
+  const controller = createCanvasController({
+    send: (c) => sent.push(c),
+    frames: syncFrames,
+    now: () => 1000,
+    openFile: (file) => opened.push(file),
+  })
   const stream = (...messages: unknown[]) => controller.handleEvent({ type: 'a2ui', messages: messages as never })
-  return { controller, sent, stream }
+  return { controller, sent, stream, opened }
+}
+
+const userFile = (path: string) => {
+  const f = new File(['hello'], path.split('/').at(-1)!, { lastModified: 5 })
+  Object.defineProperty(f, 'webkitRelativePath', { value: path })
+  return f
 }
 
 const textSurface = (id: string) => [
@@ -136,5 +148,33 @@ describe('canvas controller', () => {
     const { controller } = setup()
     controller.handleEvent({ type: 'error', scope: 'init', message: 'Inference init failed: wasm 404' })
     expect(controller.getSnapshot().phase).toBe('failed')
+  })
+
+  it('indexes a connected folder in the worker and tracks it', () => {
+    const { controller, sent } = setup()
+    expect(controller.getSnapshot().files).toBeNull()
+    controller.connectFiles([userFile('Docs/plan.txt')])
+    expect(sent).toEqual([
+      { type: 'indexFiles', source: 'Docs', files: [{ id: 'u1', name: 'plan.txt', path: 'Docs/plan.txt', size: 5, modified: 5 }] },
+    ])
+    controller.handleEvent({ type: 'filesIndexed', source: 'Docs', count: 1 })
+    expect(controller.getSnapshot().files).toEqual({ source: 'Docs', count: 1 })
+  })
+
+  it('tells the user when a selected folder has no usable files', () => {
+    const { controller, sent } = setup()
+    controller.connectFiles([])
+    expect(sent).toEqual([])
+    expect(controller.getSnapshot().notices.at(-1)).toMatch(/No files/)
+  })
+
+  it('opens the real file when the worker asks, and explains demo files', () => {
+    const { controller, opened } = setup()
+    controller.connectFiles([userFile('Docs/plan.txt')])
+    controller.handleEvent({ type: 'openFile', fileId: 'u1' })
+    expect(opened.map((f) => f.name)).toEqual(['plan.txt'])
+    controller.handleEvent({ type: 'openFile', fileId: 'f3' })
+    expect(opened).toHaveLength(1)
+    expect(controller.getSnapshot().notices.at(-1)).toMatch(/demo file/)
   })
 })

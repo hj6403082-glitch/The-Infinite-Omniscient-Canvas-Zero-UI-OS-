@@ -27,6 +27,8 @@ export interface ToolContext {
   emit(...messages: A2uiMessage[]): void
   readonly signal: AbortSignal
   status(): SystemStatus
+  // Asks the canvas to open a file (main thread); ignored once the task has ended.
+  openFile(fileId: string): void
 }
 
 // 'complete' ends the task (the surface is deleted); 'continue' keeps it open.

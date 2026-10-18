@@ -122,3 +122,38 @@ describe('worker protocol: tool-call render messages (D5)', () => {
     ).toBeNull()
   })
 })
+
+describe('worker protocol: local folders', () => {
+  const file = { id: 'u1', name: 'plan.xlsx', path: 'Docs/plan.xlsx', size: 10, modified: 1_700_000_000_000 }
+
+  it('accepts folder metadata (never file contents)', () => {
+    expect(parseWorkerCommand({ type: 'indexFiles', source: 'Docs', files: [file] })).toEqual({
+      type: 'indexFiles',
+      source: 'Docs',
+      files: [file],
+    })
+    expect(parseWorkerCommand({ type: 'indexFiles', source: 'Docs', files: [{ ...file, bytes: 'AAAA' }] })).toEqual({
+      type: 'indexFiles',
+      source: 'Docs',
+      files: [file],
+    })
+  })
+
+  it('rejects malformed or oversized folder payloads', () => {
+    for (const bad of [
+      { type: 'indexFiles', source: 'Docs', files: [{ ...file, id: 'f1' }] },
+      { type: 'indexFiles', source: 'Docs', files: [{ ...file, name: 'x'.repeat(256) }] },
+      { type: 'indexFiles', source: 'Docs', files: [{ ...file, size: -1 }] },
+      { type: 'indexFiles', source: 'x'.repeat(129), files: [] },
+      { type: 'indexFiles', source: 'Docs', files: Array.from({ length: 5001 }, (_, i) => ({ ...file, id: `u${i}` })) },
+    ]) {
+      expect(parseWorkerCommand(bad)).toBeNull()
+    }
+  })
+
+  it('accepts openFile and filesIndexed events', () => {
+    expect(parseWorkerEvent({ type: 'openFile', fileId: 'u12' })).toEqual({ type: 'openFile', fileId: 'u12' })
+    expect(parseWorkerEvent({ type: 'openFile', fileId: '../x' })).toBeNull()
+    expect(parseWorkerEvent({ type: 'filesIndexed', source: 'Docs', count: 3 })?.type).toBe('filesIndexed')
+  })
+})

@@ -1,6 +1,7 @@
 import { type InferenceLog, initInference } from '../inference/accelerator.ts'
 import { InferenceSession } from '../inference/inference-session.ts'
 import type { AcceleratorTarget, LiteRtPort } from '../inference/types.ts'
+import { type FileIndex, toFileEntry } from '../tools/file-index.ts'
 import { createToolRegistry } from '../tools/registry.ts'
 import { createTaskManager } from '../tools/task-manager.ts'
 import type { ToolDefinition } from '../tools/types.ts'
@@ -12,12 +13,14 @@ export interface WorkerRuntimeDeps {
   post(event: WorkerEvent): void
   log: InferenceLog
   tools: readonly ToolDefinition[]
+  // The searchFiles index, replaced when the user connects a folder.
+  fileIndex?: FileIndex
 }
 
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error))
 
 // Everything the intent worker does, minus the global `self` wiring (see intent.worker.ts).
-export function createWorkerRuntime({ port, post, log, tools }: WorkerRuntimeDeps) {
+export function createWorkerRuntime({ port, post, log, tools, fileIndex }: WorkerRuntimeDeps) {
   let state: 'idle' | 'initializing' | 'ready' | 'stopped' = 'idle'
   let initializing: Promise<void> | undefined
   let session: InferenceSession | undefined
@@ -34,6 +37,7 @@ export function createWorkerRuntime({ port, post, log, tools }: WorkerRuntimeDep
     status: () => ({ accelerator, tensors: tensorStats() }),
     onEnded: (ended) => post({ type: 'taskEnded', ...ended, tensors: tensorStats() }),
     onError: (surfaceId, error) => post({ type: 'error', scope: 'tool', message: `Tool ${surfaceId} failed: ${message(error)}` }),
+    openFile: (fileId) => post({ type: 'openFile', fileId }),
   })
 
   async function init({ wasmPath, modelUrl }: Extract<WorkerCommand, { type: 'init' }>): Promise<void> {
@@ -103,6 +107,14 @@ export function createWorkerRuntime({ port, post, log, tools }: WorkerRuntimeDep
         return
       case 'dismiss':
         tasks.dismiss(command.surfaceId)
+        return
+      case 'indexFiles':
+        if (!fileIndex) {
+          post({ type: 'error', scope: 'protocol', message: 'File indexing is not available' })
+          return
+        }
+        fileIndex.replace(command.files.map(toFileEntry))
+        post({ type: 'filesIndexed', source: command.source, count: command.files.length })
         return
       case 'stop':
         return stop()

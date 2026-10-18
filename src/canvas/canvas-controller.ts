@@ -6,6 +6,7 @@ import { trustedCatalog } from '../a2ui/trusted-catalog.ts'
 import type { Intent } from '../inference/intent-decoder.ts'
 import type { AcceleratorTarget } from '../inference/types.ts'
 import { MAX_TEXT_LENGTH, type WorkerCommand, type WorkerEvent } from '../worker/protocol.ts'
+import { createLocalFileStore, openLocalFile } from './local-files.ts'
 
 const POINTER_INTERVAL_MS = 50
 const MAX_NOTICES = 5
@@ -23,12 +24,15 @@ export interface CanvasSnapshot {
   tensors: { created: number; deleted: number }
   rejected: number
   notices: string[]
+  // The connected folder; null while searching the demo files.
+  files: { source: string; count: number } | null
 }
 
 export interface CanvasControllerOptions {
   send(command: WorkerCommand): void
   frames?: FrameScheduler
   now?: () => number
+  openFile?: (file: File) => void
 }
 
 type Primitive = string | number | boolean | null
@@ -49,7 +53,13 @@ const clamp01 = (v: number) => (Number.isFinite(v) ? Math.min(1, Math.max(0, v))
 
 // Main-thread state for the canvas: A2UI processor behind the zero-trust gate and the
 // frame batcher, plus everything the chrome shows. React subscribes via useSyncExternalStore.
-export function createCanvasController({ send, frames, now = () => performance.now() }: CanvasControllerOptions) {
+export function createCanvasController({
+  send,
+  frames,
+  now = () => performance.now(),
+  openFile = (file) => void openLocalFile(file),
+}: CanvasControllerOptions) {
+  const localFiles = createLocalFileStore()
   let snapshot: CanvasSnapshot = {
     phase: 'loading',
     accelerator: null,
@@ -59,6 +69,7 @@ export function createCanvasController({ send, frames, now = () => performance.n
     tensors: { created: 0, deleted: 0 },
     rejected: 0,
     notices: [],
+    files: null,
   }
   const listeners = new Set<() => void>()
   let lastPointerAt = Number.NEGATIVE_INFINITY
@@ -120,6 +131,15 @@ export function createCanvasController({ send, frames, now = () => performance.n
         case 'stopped':
           update({ tensors: event.tensors })
           return
+        case 'filesIndexed':
+          update({ files: { source: event.source, count: event.count } })
+          return
+        case 'openFile': {
+          const file = localFiles.get(event.fileId)
+          if (file) openFile(file)
+          else notice('That is a demo file. Connect a folder to search and open your own files.')
+          return
+        }
       }
     },
 
@@ -132,6 +152,15 @@ export function createCanvasController({ send, frames, now = () => performance.n
       if (at - lastPointerAt < POINTER_INTERVAL_MS) return
       lastPointerAt = at
       send({ type: 'pointer', x: clamp01(x), y: clamp01(y), at: Math.max(0, at) })
+    },
+
+    connectFiles(selection: Iterable<File>): void {
+      const payload = localFiles.connect(selection)
+      if (!payload) {
+        notice('No files found in that folder (hidden files are skipped).')
+        return
+      }
+      send({ type: 'indexFiles', ...payload })
     },
 
     reportInvalidWorkerMessage(): void {

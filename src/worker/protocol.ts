@@ -18,6 +18,16 @@ const ActionContextSchema = z
   .record(z.union([z.string().max(1024), z.number().finite(), z.boolean(), z.null()]))
   .refine((context) => Object.keys(context).length <= 16, 'too many context keys')
 const TensorStatsSchema = z.object({ created: z.number().int().min(0), deleted: z.number().int().min(0) })
+export const MAX_INDEXED_FILES = 5000
+const FileIdSchema = z.string().regex(/^[fu]\d{1,6}$/)
+// Metadata of one file in a connected folder; contents never cross into the worker.
+const FileMetadataSchema = z.object({
+  id: z.string().regex(/^u\d{1,6}$/),
+  name: z.string().min(1).max(255),
+  path: z.string().min(1).max(1024),
+  size: z.number().int().min(0),
+  modified: z.number().int().min(0),
+})
 // Envelope only: each A2UI message is validated in full by the main-thread message gate.
 const A2uiBatchSchema = z.array(z.record(z.unknown())).min(1).max(64)
 
@@ -28,6 +38,11 @@ const WorkerCommandSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('pointer'), x: unit, y: unit, at: z.number().finite().min(0) }),
   z.object({ type: z.literal('action'), surfaceId: SurfaceIdSchema, name: ActionNameSchema, context: ActionContextSchema }),
   z.object({ type: z.literal('dismiss'), surfaceId: SurfaceIdSchema }),
+  z.object({
+    type: z.literal('indexFiles'),
+    source: z.string().min(1).max(128),
+    files: z.array(FileMetadataSchema).max(MAX_INDEXED_FILES),
+  }),
   z.object({ type: z.literal('stop') }),
 ])
 
@@ -47,6 +62,8 @@ const WorkerEventSchema = z.discriminatedUnion('type', [
     tensors: TensorStatsSchema,
   }),
   z.object({ type: z.literal('a2ui'), messages: A2uiBatchSchema }),
+  z.object({ type: z.literal('openFile'), fileId: FileIdSchema }),
+  z.object({ type: z.literal('filesIndexed'), source: z.string().max(128), count: z.number().int().min(0) }),
   z.object({
     type: z.literal('taskEnded'),
     surfaceId: SurfaceIdSchema,

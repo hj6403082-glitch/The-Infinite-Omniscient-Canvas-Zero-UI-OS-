@@ -1,5 +1,5 @@
 import { A2uiSurface } from '@a2ui/react/v0_9'
-import { useEffect, useId, useSyncExternalStore } from 'react'
+import { type InputHTMLAttributes, useEffect, useId, useSyncExternalStore } from 'react'
 import type { ToolName } from '../inference/intent-decoder.ts'
 import type { AcceleratorTarget } from '../inference/types.ts'
 import type { CanvasController, CanvasSnapshot, CanvasSurface } from './canvas-controller.ts'
@@ -50,6 +50,33 @@ function Indicators({ snapshot }: { snapshot: CanvasSnapshot }) {
   )
 }
 
+// `webkitdirectory` is supported by every major browser but missing from React's DOM types.
+const directoryPicker = { webkitdirectory: '' } as InputHTMLAttributes<HTMLInputElement>
+
+function FolderControl({ controller, snapshot }: { controller: CanvasController; snapshot: CanvasSnapshot }) {
+  const files = snapshot.files
+  return (
+    <div className="folder">
+      <span role="status" aria-label="Files" className="indicator">
+        {files ? `${files.source} · ${files.count} ${files.count === 1 ? 'file' : 'files'}` : 'Demo files'}
+      </span>
+      <label className="folder-connect">
+        Connect folder
+        <input
+          type="file"
+          className="visually-hidden"
+          multiple
+          {...directoryPicker}
+          onChange={(event) => {
+            controller.connectFiles(event.target.files ?? [])
+            event.target.value = ''
+          }}
+        />
+      </label>
+    </div>
+  )
+}
+
 function SurfaceFrame({ surface, onDismiss }: { surface: CanvasSurface; onDismiss(): void }) {
   const headingId = useId()
   const title = titleOf(surface.id)
@@ -93,6 +120,7 @@ export function Canvas({ controller }: { controller: CanvasController }) {
           onChange={(event) => controller.text(event.target.value)}
         />
         <Indicators snapshot={snapshot} />
+        <FolderControl controller={controller} snapshot={snapshot} />
       </header>
       <main className="canvas" aria-label="Infinite Omniscient Canvas">
         {snapshot.surfaces.length === 0 ? (

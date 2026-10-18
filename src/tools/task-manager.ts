@@ -16,6 +16,7 @@ export interface TaskManagerOptions {
   status(): Omit<SystemStatus, 'activeTasks'>
   onEnded(event: TaskEnded): void
   onError(surfaceId: string, error: unknown): void
+  openFile(fileId: string): void
   // Budget for a tool to finish streaming its surface (not for the user to respond).
   timeoutMs?: number
   maxSurfaces?: number
@@ -38,6 +39,7 @@ export function createTaskManager({
   status,
   onEnded,
   onError,
+  openFile,
   timeoutMs = 10_000,
   maxSurfaces = 4,
 }: TaskManagerOptions) {
@@ -90,6 +92,9 @@ export function createTaskManager({
           if (!task.ended) emit(messages)
         },
         status: () => ({ ...status(), activeTasks: tasks.size }),
+        openFile: (fileId: string) => {
+          if (!task.ended) openFile(fileId)
+        },
       }
       tool.run(context, { query }).then(
         (handle) => {

@@ -1,4 +1,5 @@
-// Demo file index for the searchFiles tool. Replace with a real (OPFS / native) index later.
+// File index for the searchFiles tool: demo files until the user connects a folder, whose
+// metadata (never contents) then replaces them.
 
 export interface FileEntry {
   id: string
@@ -6,6 +7,73 @@ export interface FileEntry {
   kind: string
   modified: string
   size: string
+  path?: string
+}
+
+// What the main thread sends for each file in a connected folder.
+export interface FileMetadata {
+  id: string
+  name: string
+  path: string
+  size: number
+  modified: number
+}
+
+const KINDS: Record<string, string> = {
+  pdf: 'PDF document',
+  doc: 'Document',
+  docx: 'Document',
+  odt: 'Document',
+  rtf: 'Document',
+  xls: 'Spreadsheet',
+  xlsx: 'Spreadsheet',
+  ods: 'Spreadsheet',
+  csv: 'CSV data',
+  ppt: 'Presentation',
+  pptx: 'Presentation',
+  key: 'Presentation',
+  png: 'Image',
+  jpg: 'Image',
+  jpeg: 'Image',
+  gif: 'Image',
+  webp: 'Image',
+  avif: 'Image',
+  heic: 'Image',
+  svg: 'Image',
+  mp3: 'Audio',
+  wav: 'Audio',
+  flac: 'Audio',
+  m4a: 'Audio',
+  mp4: 'Video',
+  mov: 'Video',
+  webm: 'Video',
+  md: 'Markdown',
+  txt: 'Text',
+  log: 'Text',
+  json: 'JSON data',
+  tflite: 'LiteRT model',
+  zip: 'Archive',
+}
+
+export function kindOf(name: string): string {
+  const dot = name.lastIndexOf('.')
+  return dot > 0 ? (KINDS[name.slice(dot + 1).toLowerCase()] ?? 'File') : 'File'
+}
+
+export function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  const units = ['KB', 'MB', 'GB', 'TB']
+  let value = bytes / 1024
+  let unit = 0
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024
+    unit += 1
+  }
+  return `${value.toFixed(1)} ${units[unit]}`
+}
+
+export function toFileEntry({ id, name, path, size, modified }: FileMetadata): FileEntry {
+  return { id, name, kind: kindOf(name), modified: new Date(modified).toISOString().slice(0, 10), size: formatBytes(size), path }
 }
 
 const raw: [string, string, string, string][] = [
@@ -70,8 +138,20 @@ function delay(ms: number, signal: AbortSignal): Promise<void> {
   })
 }
 
-export function createFileIndex(files: readonly FileEntry[], { latencyMs = 250 } = {}) {
+export function createFileIndex(initial: readonly FileEntry[], { latencyMs = 250 } = {}) {
+  let files = initial
+  let ids = new Set(files.map((f) => f.id))
   return {
+    replace(next: readonly FileEntry[]): void {
+      files = next
+      ids = new Set(next.map((f) => f.id))
+    },
+    has(id: string): boolean {
+      return ids.has(id)
+    },
+    get size(): number {
+      return files.length
+    },
     async search(query: string, signal: AbortSignal): Promise<FileEntry[]> {
       await delay(latencyMs, signal)
       const tokens = query
@@ -82,7 +162,7 @@ export function createFileIndex(files: readonly FileEntry[], { latencyMs = 250 }
       if (tokens.length === 0) return []
       return files
         .map((file) => {
-          const haystack = `${file.name} ${file.kind}`.toLowerCase()
+          const haystack = `${file.name} ${file.kind} ${file.path ?? ''}`.toLowerCase()
           return { file, score: tokens.filter((t) => haystack.includes(t)).length }
         })
         .filter(({ score }) => score > 0)

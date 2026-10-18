@@ -90,4 +90,17 @@ describe('Canvas (E6)', () => {
     expect(screen.getByRole('log')).toHaveTextContent('Inference init failed: wasm 404')
     expect(screen.getByRole('status', { name: 'Accelerator' })).toHaveTextContent('Inference unavailable')
   })
+
+  it('connects a local folder through a directory picker', () => {
+    const { emit, sent } = setup()
+    expect(screen.getByRole('status', { name: 'Files' })).toHaveTextContent('Demo files')
+    const picker = screen.getByLabelText('Connect folder')
+    expect(picker).toHaveAttribute('webkitdirectory')
+    const f = new File(['x'], 'plan.txt')
+    Object.defineProperty(f, 'webkitRelativePath', { value: 'Docs/plan.txt' })
+    fireEvent.change(picker, { target: { files: [f] } })
+    expect(sent.find((c) => c.type === 'indexFiles')).toMatchObject({ source: 'Docs' })
+    emit({ type: 'filesIndexed', source: 'Docs', count: 1 })
+    expect(screen.getByRole('status', { name: 'Files' })).toHaveTextContent('Docs · 1 file')
+  })
 })

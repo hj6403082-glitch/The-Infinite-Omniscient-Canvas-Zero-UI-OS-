@@ -13,8 +13,9 @@ function setup(options: Parameters<typeof createFakePort>[0] = {}) {
   const fake = createFakePort({ modelOutput: () => LOGITS.confidentSearch, ...options })
   const events: WorkerEvent[] = []
   const log = { info: vi.fn(), warn: vi.fn() }
-  const tools = [createSearchFilesTool(createFileIndex(DEMO_FILES, { latencyMs: 0 })), showStatusTool]
-  const runtime = createWorkerRuntime({ port: fake.port, post: (e) => events.push(e), log, tools })
+  const fileIndex = createFileIndex(DEMO_FILES, { latencyMs: 0 })
+  const tools = [createSearchFilesTool(fileIndex), showStatusTool]
+  const runtime = createWorkerRuntime({ port: fake.port, post: (e) => events.push(e), log, tools, fileIndex })
   return { ...fake, events, runtime }
 }
 
@@ -127,6 +128,32 @@ describe('worker runtime (C5)', () => {
     await vi.runAllTimersAsync() // let the search tool finish streaming
     await runtime.handle({ type: 'action', surfaceId: 'searchFiles-1', name: 'openFile', context: { fileId: 'f1' } })
     expect(events.at(-1)).toMatchObject({ type: 'taskEnded', reason: 'completed' })
+  })
+
+  it('indexes a connected folder and searches it instead of the demo files', async () => {
+    const { runtime, events } = setup()
+    await runtime.handle({
+      type: 'indexFiles',
+      source: 'Docs',
+      files: [{ id: 'u1', name: 'invoice-acme.pdf', path: 'Docs/invoice-acme.pdf', size: 10, modified: 0 }],
+    })
+    expect(events).toEqual([{ type: 'filesIndexed', source: 'Docs', count: 1 }])
+    await runtime.handle(INIT)
+    await runtime.handle({ type: 'text', text: 'find invoices' })
+    await vi.runAllTimersAsync()
+    const data = JSON.stringify(events.filter((e) => e.type === 'a2ui'))
+    expect(data).toContain('invoice-acme.pdf')
+    expect(data).not.toContain('invoice-2026-09.pdf')
+  })
+
+  it('asks the main thread to open the chosen file', async () => {
+    const { runtime, events } = setup()
+    await runtime.handle(INIT)
+    await runtime.handle({ type: 'text', text: 'invoices' })
+    await vi.runAllTimersAsync()
+    await runtime.handle({ type: 'action', surfaceId: 'searchFiles-1', name: 'openFile', context: { fileId: 'f2' } })
+    expect(events.slice(-3).map((e) => e.type)).toEqual(['openFile', 'a2ui', 'taskEnded'])
+    expect(events.at(-3)).toEqual({ type: 'openFile', fileId: 'f2' })
   })
 
   it('ignores actions and dismissals before the model is ready', async () => {

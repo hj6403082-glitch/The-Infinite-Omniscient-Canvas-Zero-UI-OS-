@@ -28,7 +28,9 @@ function setup({ timeoutMs = 10_000, maxSurfaces = 4 } = {}) {
   const messages: A2uiMessage[] = []
   const ended: TaskEnded[] = []
   const onError = vi.fn()
+  const openFile = vi.fn()
   const manager = createTaskManager({
+    openFile,
     registry: createToolRegistry([search.tool, status.tool]),
     emit: (batch) => messages.push(...batch),
     status: () => ({ accelerator: 'wasm', tensors: { created: 0, deleted: 0 } }),
@@ -56,7 +58,7 @@ function setup({ timeoutMs = 10_000, maxSurfaces = 4 } = {}) {
     processor.processMessages(messages)
     return processor
   }
-  return { manager, search, status, messages, ended, onError, assertLifecycles }
+  return { manager, search, status, messages, ended, onError, openFile, assertLifecycles }
 }
 
 beforeEach(() => {
@@ -191,6 +193,15 @@ describe('task manager: Tool-Call Render lifecycle', () => {
     manager.endAll()
     expect(ended.map((e) => e.reason)).toEqual(['shutdown', 'shutdown'])
     expect(assertLifecycles().getSurfaces().size).toBe(0)
+  })
+
+  it('lets a live task ask to open a file, but not a finished one', () => {
+    const { manager, search, openFile } = setup()
+    const id = manager.start('searchFiles', 'q')
+    search.runs[0].context.openFile('f1')
+    manager.dismiss(id)
+    search.runs[0].context.openFile('f2')
+    expect(openFile.mock.calls).toEqual([['f1']])
   })
 
   it('ignores actions and dismissals for unknown or finished surfaces', () => {

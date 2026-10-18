@@ -16,11 +16,13 @@ const scope = self as unknown as {
   addEventListener(type: 'message', listener: (event: MessageEvent<unknown>) => void): void
 }
 
+const fileIndex = createFileIndex(DEMO_FILES)
 const runtime = createWorkerRuntime({
   port: liteRtPort,
   post: (event) => scope.postMessage(event),
   log: console,
-  tools: [createSearchFilesTool(createFileIndex(DEMO_FILES)), showStatusTool],
+  tools: [createSearchFilesTool(fileIndex), showStatusTool],
+  fileIndex,
 })
 
 scope.addEventListener('message', (event) => {

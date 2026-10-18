@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { a2ui } from '../a2ui/messages.ts'
 import { captureContext, strictProcessor } from '../test/tool-harness.ts'
-import { createFileIndex, DEMO_FILES } from './file-index.ts'
+import { createFileIndex, DEMO_FILES, toFileEntry } from './file-index.ts'
 import { createSearchFilesTool } from './search-files.ts'
 
 const index = createFileIndex(DEMO_FILES, { latencyMs: 0 })
@@ -61,6 +61,7 @@ describe('searchFiles tool', () => {
     const handle = await createSearchFilesTool(index).run(context, { query: 'invoice' })
     expect(handle.onAction('sort', {})).toBe('continue')
     expect(handle.onAction('openFile', { fileId: 'f1' })).toBe('complete')
+    expect(context.openFile).toHaveBeenCalledWith('f1')
   })
 
   it('stops emitting when aborted mid-search', async () => {
@@ -71,5 +72,53 @@ describe('searchFiles tool', () => {
     controller.abort()
     await expect(run).rejects.toThrow(/abort/i)
     expect(messages).toHaveLength(emittedBeforeAbort)
+  })
+})
+
+describe('file index: user folders', () => {
+  it('maps file metadata to table rows', () => {
+    expect(
+      toFileEntry({ id: 'u1', name: 'Budget Plan.xlsx', path: 'Docs/finance/Budget Plan.xlsx', size: 2048, modified: Date.UTC(2026, 9, 1) }),
+    ).toEqual({
+      id: 'u1',
+      name: 'Budget Plan.xlsx',
+      kind: 'Spreadsheet',
+      modified: '2026-10-01',
+      size: '2.0 KB',
+      path: 'Docs/finance/Budget Plan.xlsx',
+    })
+    expect(toFileEntry({ id: 'u2', name: 'README', path: 'x/README', size: 0, modified: 0 }).kind).toBe('File')
+    expect(toFileEntry({ id: 'u3', name: 'a.weird', path: 'a.weird', size: 5 * 1024 * 1024, modified: 0 }).size).toBe('5.0 MB')
+  })
+
+  it('replaces the index and searches folder names too', async () => {
+    const userIndex = createFileIndex(DEMO_FILES, { latencyMs: 0 })
+    userIndex.replace([
+      toFileEntry({ id: 'u1', name: 'plan.xlsx', path: 'Docs/finance/plan.xlsx', size: 10, modified: 0 }),
+    ])
+    const signal = new AbortController().signal
+    expect(await userIndex.search('invoice', signal)).toEqual([])
+    expect((await userIndex.search('finance', signal)).map((f) => f.id)).toEqual(['u1'])
+    expect(userIndex.has('u1')).toBe(true)
+    expect(userIndex.has('f1')).toBe(false)
+    expect(userIndex.size).toBe(1)
+  })
+})
+
+describe('searchFiles: opening a file (terminal action)', () => {
+  it('asks the runtime to open a known file, then completes', async () => {
+    const { context } = captureContext('searchFiles-1')
+    const handle = await createSearchFilesTool(index).run(context, { query: 'invoice' })
+    expect(handle.onAction('openFile', { fileId: 'f2' })).toBe('complete')
+    expect(context.openFile).toHaveBeenCalledWith('f2')
+  })
+
+  it('ignores unknown or malformed file ids', async () => {
+    const { context } = captureContext('searchFiles-1')
+    const handle = await createSearchFilesTool(index).run(context, { query: 'invoice' })
+    expect(handle.onAction('openFile', { fileId: 'nope' })).toBe('continue')
+    expect(handle.onAction('openFile', { fileId: 7 })).toBe('continue')
+    expect(handle.onAction('openFile', {})).toBe('continue')
+    expect(context.openFile).not.toHaveBeenCalled()
   })
 })

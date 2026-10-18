@@ -5,7 +5,7 @@ import type { ToolDefinition } from './types.ts'
 export function createSearchFilesTool(index: FileIndex): ToolDefinition {
   return {
     name: 'searchFiles',
-    async run({ surfaceId, emit, signal }, { query }) {
+    async run({ surfaceId, emit, signal, openFile }, { query }) {
       // Static component tree; everything user- or data-derived lives in the data model.
       emit(
         a2ui.updateComponents(surfaceId, [
@@ -55,7 +55,12 @@ export function createSearchFilesTool(index: FileIndex): ToolDefinition {
 
       return {
         // Opening a file is the task's terminal action.
-        onAction: (name) => (name === 'openFile' ? 'complete' : 'continue'),
+        onAction: (name, context) => {
+          const fileId = context.fileId
+          if (name !== 'openFile' || typeof fileId !== 'string' || !index.has(fileId)) return 'continue'
+          openFile(fileId)
+          return 'complete'
+        },
       }
     },
   }
